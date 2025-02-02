@@ -1,4 +1,11 @@
 import streamlit as st
+import pandas as pd
+
+basari = pd.read_csv("stres.csv")
+basari["student_id"] = basari["student_id"].astype(int)
+basari["true_ratio_cat"] = basari["true_ratio_cat"].astype(int)
+nos = basari["student_id"]
+# stres = stres.apply(lambda x: "öğrenci no: " + str(int(x["student_id"])) + " - başarı skoru: " + str(int(x["true_ratio_cat"])), axis=1)
 
 st.title("Student form")
 
@@ -102,8 +109,9 @@ with st.form("form"):
         0,
     )
 
-    reason = st.text_area("Anlatmak istediğin bir şey var mı?")
+    student_selection = st.selectbox("Öğrenci/Başarı skoru seçimi", options=nos, format_func=lambda x: "Öğrenci no: " + str(x) + " - Başarı skoru: " + str(basari[basari["student_id"] == x]["true_ratio_cat"].iloc[0]))
 
+    reason = st.text_area("Anlatmak istediğin bir şey var mı?")
     submitted = st.form_submit_button("Submit")
 
     if submitted:
@@ -151,9 +159,12 @@ with st.form("form"):
             ]
         )
 
+        basari_score = basari[basari["student_id"] == student_selection]["true_ratio_cat"].iloc[0]
+
         system_prompt = """\
 Sen bir danışman sekreterisin. Aşağıdaki öğrenci metni ve ek meta veriler üzerinden öğrencinin gününü, yaptığı aktiviteleri ve duygusal durumunu 1-2 kısa cümle ile özetle.
 Stres skoru: 0-56 arası değişebilen bir değer. Eğer 28'den büyük ise öğrencinin stresli olduğunu söyleyebiliriz.
+Başarı skoru: 0-5 arası değişebilen bir değer. 5 en yüksek başarıyı, 0 en düşük başarıyı temsil ediyor. Bu skor sınavlardan aldığı puana göre hesaplanıyor.
 
 Örnek 1:
 Öğrenci metni: Bugün sabah erken kalkıp ders çalıştım, öğleden sonra arkadaşlarımla buluştum fakat akşam sınavım kötü geçti.
@@ -183,7 +194,7 @@ Meta veriler: {ruh hali: "yorgun", "mutsuz"}
                     "role": "user",
                     "content": (
                         f"Öğrenci metni: {reason}\n"
-                        f"Meta veriler: {{stres skoru: {stress_scores[0]}}}\n"
+                        f"Meta veriler: {{stres skoru: {stress_scores[0]}, başarı skoru: {str(basari_score)}}}\n"
                         "Özet:"
                     ),
                 },
@@ -191,12 +202,11 @@ Meta veriler: {ruh hali: "yorgun", "mutsuz"}
             temperature=0,
         )
 
-        print(response.choices[0].message.content)
-
         st.divider()
+
         st.success(
             f"""\
 Rapor danışmana başarıyla gönderildi.\n
 Hesaplanan stres seviyesi: {'Stresli' if int(stress_scores[0]) > 28 else 'Stresli değil'} (skor: {stress_scores[0]})\n
-Danışmana gönderilen bildirim: {response.choices[0].message.content}""")
-
+Danışmana gönderilen bildirim: {response.choices[0].message.content}"""
+        )
